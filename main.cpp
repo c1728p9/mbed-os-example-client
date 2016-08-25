@@ -18,6 +18,7 @@
 #include <sstream>
 #include <vector>
 #include "mbed-trace/mbed_trace.h"
+#include "mbed_stats.h"
 
 #include "security.h"
 
@@ -219,6 +220,12 @@ public:
         char buffer[20];
         int size = sprintf(buffer,"%d",counter);
         res->set_value((uint8_t*)buffer, size);
+
+        // Exit after the button has been pressed 5 times and report metrics
+        if (counter == 5) {
+            extern void unregister();
+            unregister();
+        }
     }
 
 private:
@@ -369,4 +376,11 @@ Add MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES and MBEDTLS_TEST_NULL_ENTROPY in mbed_app
 
     mbed_client.test_unregister();
     status_ticker.detach();
+
+    mbed_stats_heap_t stats;
+    mbed_stats_heap_get(&stats);
+    printf("Max heap %lu\r\n", stats.max_size);
+    printf("Current heap %lu\r\n", stats.current_size);
+    printf("Allocation count %lu\r\n", stats.alloc_cnt);
+    printf("Allocation failure count %lu\r\n", stats.alloc_fail_cnt);
 }
