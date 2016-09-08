@@ -226,6 +226,49 @@ private:
     uint16_t counter;
 };
 
+
+class StressTestResource {
+public:
+    StressTestResource(): counter(0) {
+        // create ObjectID with metadata tag of device
+        test_object = M2MInterfaceFactory::create_object("3");
+        M2MObjectInstance* btn_inst = test_object->create_object_instance();
+        // create user defined resource with ID '11000'
+        M2MResource* test_res = btn_inst->create_dynamic_resource("11000", "RequestData",
+            M2MResourceInstance::INTEGER, true /* observable */);
+        // we can read this value
+        test_res->set_operation(M2MBase::GET_POST_ALLOWED);
+        // set initial value (all values in mbed Client are buffers)
+        // to be able to read this data easily in the Connector console, we'll use a string
+        test_res->set_execute_function(execute_callback(this, &StressTestResource::update_value));
+        test_res->set_value((uint8_t*)"0", 1);
+    }
+
+    ~StressTestResource() {
+    }
+
+    M2MObject* get_object() {
+        return test_object;
+    }
+
+    void update_value(void*) {
+        M2MObjectInstance* inst = test_object->object_instance();
+        M2MResource* res = inst->resource("11000");
+
+        const uint32_t buffer_size = 6000;
+        char *buffer = new char[buffer_size];
+        memset(buffer, 'x', buffer_size);
+        res->set_value((uint8_t*)buffer, buffer_size);
+        delete[] buffer;
+        counter += 1;
+    }
+
+
+private:
+    M2MObject* test_object;
+    uint16_t counter;
+};
+
 // Network interaction must be performed outside of interrupt context
 Semaphore updates(0);
 volatile bool registered = false;
@@ -315,6 +358,7 @@ Add MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES and MBEDTLS_TEST_NULL_ENTROPY in mbed_app
 
     // we create our button and LED resources
     ButtonResource button_resource;
+    StressTestResource test_resource;
     LedResource led_resource;
 
 #ifdef TARGET_K64F
@@ -343,6 +387,7 @@ Add MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES and MBEDTLS_TEST_NULL_ENTROPY in mbed_app
     // Add objects to list
     object_list.push_back(device_object);
     object_list.push_back(button_resource.get_object());
+    object_list.push_back(test_resource.get_object());
     object_list.push_back(led_resource.get_object());
 
     // Set endpoint registration object
